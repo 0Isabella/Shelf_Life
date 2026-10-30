@@ -1,6 +1,5 @@
 package com.example.shelflife.navigation
 
-import com.example.shelflife.data.LivrosStorage
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.NavigationBar
@@ -8,10 +7,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +18,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.shelflife.data.local.AppDatabase
+import com.example.shelflife.data.AmigosIniciais
 import com.example.shelflife.data.LivrosIniciais
 import com.example.shelflife.model.Amigo
 import com.example.shelflife.model.Livro
@@ -29,16 +27,10 @@ import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import com.example.shelflife.ui.theme.screens.AmigosStorage
-import com.example.shelflife.ui.theme.screens.TelaAmigos
-import com.example.shelflife.ui.theme.screens.TelaAnotacao
-import com.example.shelflife.ui.theme.screens.TelaDetalheAmigo
-import com.example.shelflife.ui.theme.screens.TelaDetalhes
-import com.example.shelflife.ui.theme.screens.TelaEstante
-import com.example.shelflife.ui.theme.screens.TelaInicio
-import com.example.shelflife.ui.theme.screens.TelaPerfil
-import com.example.shelflife.ui.theme.screens.TelaRanking
-import com.example.shelflife.ui.theme.screens.TelaAddLivro
+import com.example.shelflife.ui.screens.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class ItemBarra(val rota: String, val emoji: String, val rotulo: String)
 
@@ -54,50 +46,89 @@ private val itensBarra = listOf(
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val db = remember { AppDatabase.obterInstancia(context) }
+    val coroutineScope = rememberCoroutineScope()
 
-    val amigos = remember {
-        mutableStateListOf<Amigo>().apply { addAll(AmigosStorage.carregar(context)) }
+    val amigos = remember { mutableStateListOf<Amigo>() }
+    val livros = remember { mutableStateListOf<Livro>() }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val livrosDoBanco = db.livroDao().buscarTodos()
+            if (livrosDoBanco.isEmpty()) {
+                LivrosIniciais.forEach { livro ->
+                    db.livroDao().inserir(livro)
+                }
+                livros.addAll(db.livroDao().buscarTodos())
+            } else {
+                livros.addAll(livrosDoBanco)
+            }
+
+            val amigosDoBanco = db.amigoDao().buscarTodos()
+            if (amigosDoBanco.isEmpty()) {
+                AmigosIniciais.forEach { amigo ->
+                    db.amigoDao().inserir(amigo)
+                }
+                amigos.addAll(db.amigoDao().buscarTodos())
+            } else {
+                amigos.addAll(amigosDoBanco)
+            }
+        }
     }
 
     fun adicionarAmigo(amigo: Amigo) {
-        if (amigos.none { it.id == amigo.id }) {
-            amigos.add(0, amigo)
-            AmigosStorage.salvar(context, amigos)
+        coroutineScope.launch(Dispatchers.IO) {
+            if (amigos.none { it.id == amigo.id }) {
+                val id = db.amigoDao().inserir(amigo)
+                val amigoComId = amigo.copy(id = id.toInt())
+                withContext(Dispatchers.Main) {
+                    amigos.add(0, amigoComId)
+                }
+            }
         }
     }
 
     fun removerAmigo(amigo: Amigo) {
-        amigos.removeAll { it.id == amigo.id }
-        AmigosStorage.salvar(context, amigos)
-    }
-
-    val livros = remember {
-        mutableStateListOf<Livro>().apply { addAll(LivrosStorage.carregar(context)) }
+        coroutineScope.launch(Dispatchers.IO) {
+            db.amigoDao().deletar(amigo)
+            withContext(Dispatchers.Main) {
+                amigos.removeAll { it.id == amigo.id }
+            }
+        }
     }
 
     fun adicionarLivro(titulo: String, autor: String, paginas: Int) {
-        val novoId = (livros.maxOfOrNull { it.id } ?: -1) + 1
-        livros.add(
-            0,
-            Livro(
-                id = novoId,
+        coroutineScope.launch(Dispatchers.IO) {
+            val novoLivro = Livro(
                 titulo = titulo,
                 autor = autor.ifBlank { "Autor desconhecido" },
                 paginasTotal = paginas
             )
-        )
-        LivrosStorage.salvar(context, livros)
+            val id = db.livroDao().inserir(novoLivro)
+            val livroComId = novoLivro.copy(id = id.toInt())
+            withContext(Dispatchers.Main) {
+                livros.add(0, livroComId)
+            }
+        }
     }
 
     fun removerLivro(livro: Livro) {
-        livros.removeAll { it.id == livro.id }
-        LivrosStorage.salvar(context, livros)
+        coroutineScope.launch(Dispatchers.IO) {
+            db.livroDao().deletar(livro)
+            withContext(Dispatchers.Main) {
+                livros.removeAll { it.id == livro.id }
+            }
+        }
     }
 
     fun atualizarLivro(livro: Livro) {
-        val indice = livros.indexOfFirst { it.id == livro.id }
-        if (indice != -1) livros[indice] = livro
-        LivrosStorage.salvar(context, livros)
+        coroutineScope.launch(Dispatchers.IO) {
+            db.livroDao().atualizar(livro)
+            withContext(Dispatchers.Main) {
+                val indice = livros.indexOfFirst { it.id == livro.id }
+                if (indice != -1) livros[indice] = livro
+            }
+        }
     }
 
     val entradaAtual by navController.currentBackStackEntryAsState()
@@ -192,10 +223,10 @@ fun AppNavigation() {
                 route = Rotas.DETALHE_AMIGO,
                 arguments = listOf(navArgument("amigoId") { type = NavType.IntType })
             ) { entrada ->
-                val id = entrada.arguments?.getInt("amigoId")
+                val id = entrada.arguments?.getInt("amigoId") ?: -1
                 TelaDetalheAmigo(
-                    amigo = amigos.firstOrNull { it.id == id },
-                    amigos = amigos,
+                    amigoId = id,
+                    amigoDao = db.amigoDao(),
                     aoVoltar = { navController.popBackStack() },
                     aoRemover = { amigo -> removerAmigo(amigo) }
                 )
@@ -207,7 +238,8 @@ fun AppNavigation() {
             ) { entrada ->
                 val id = entrada.arguments?.getInt("livroId") ?: -1
                 TelaDetalhes(
-                    livro = livros.firstOrNull { it.id == id },
+                    livroId = id,
+                    livroDao = db.livroDao(),
                     aoAtualizar = { livro -> atualizarLivro(livro) },
                     aoRemover = { livro -> removerLivro(livro) },
                     aoAbrirAnotacoes = { navController.navigate(Rotas.anotacao(id)) },
@@ -221,7 +253,7 @@ fun AppNavigation() {
             ) { entrada ->
                 val id = entrada.arguments?.getInt("livroId") ?: -1
                 TelaAnotacao(
-                    livro = livros.firstOrNull { it.id == id },
+                    livro = livros.firstOrNull { id == it.id },
                     aoSalvar = { livro -> atualizarLivro(livro) },
                     aoVoltar = { navController.popBackStack() }
                 )

@@ -1,9 +1,13 @@
 package com.example.shelflife.model
 
 import androidx.annotation.DrawableRes
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
+@Entity(tableName = "livros")
 data class Livro(
-    val id: Int,
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
     val titulo: String,
     val autor: String = "Autor desconhecido",
     @DrawableRes val imagemRes: Int? = null,

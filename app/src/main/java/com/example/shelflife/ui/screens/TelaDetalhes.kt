@@ -1,4 +1,4 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -14,24 +14,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.shelflife.data.LivrosIniciais
+import com.example.shelflife.data.local.LivroDao
 import com.example.shelflife.model.Livro
 import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import com.example.shelflife.ui.theme.components.BarraProgresso
-import com.example.shelflife.ui.theme.components.CampoTexto
-import com.example.shelflife.ui.theme.components.CapaLivro
+import com.example.shelflife.ui.components.BarraProgresso
+import com.example.shelflife.ui.components.CampoTexto
+import com.example.shelflife.ui.components.CapaLivro
 import com.example.shelflife.util.formatarMinutos
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaDetalhes(
-    livro: Livro?,
+    livroId: Int,
+    livroDao: LivroDao,
     aoAtualizar: (Livro) -> Unit,
     aoRemover: (Livro) -> Unit,
     aoAbrirAnotacoes: () -> Unit,
@@ -39,6 +41,13 @@ fun TelaDetalhes(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var livro by remember { mutableStateOf<Livro?>(null) }
+
+    LaunchedEffect(livroId) {
+        withContext(Dispatchers.IO) {
+            livro = livroDao.buscarPorId(livroId)
+        }
+    }
 
     var total by remember(livro?.id) {
         mutableStateOf(livro?.paginasTotal?.takeIf { it > 0 }?.toString() ?: "")
@@ -69,27 +78,28 @@ fun TelaDetalhes(
             )
         )
 
-        if (livro == null) {
+        val currentLivro = livro
+        if (currentLivro == null) {
             Text(
-                text = "Livro não encontrado.",
+                text = "Carregando...",
                 color = CorTextoSecundario,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(16.dp)
             )
         } else {
-            val progresso = if (livro.paginasTotal > 0) {
-                livro.paginasLidas.toFloat() / livro.paginasTotal
+            val progresso = if (currentLivro.paginasTotal > 0) {
+                currentLivro.paginasLidas.toFloat() / currentLivro.paginasTotal
             } else {
                 0f
             }
 
             val previsao = when {
-                livro.paginasTotal > 0 && livro.paginasLidas >= livro.paginasTotal ->
+                currentLivro.paginasTotal > 0 && currentLivro.paginasLidas >= currentLivro.paginasTotal ->
                     "Livro concluído"
-                livro.paginasLidas > 0 && livro.minutosLidos > 0 ->
+                currentLivro.paginasLidas > 0 && currentLivro.minutosLidos > 0 ->
                     "Previsão para terminar: " + formatarMinutos(
-                        (livro.minutosLidos.toLong() * (livro.paginasTotal - livro.paginasLidas) /
-                                livro.paginasLidas).toInt()
+                        (currentLivro.minutosLidos.toLong() * (currentLivro.paginasTotal - currentLivro.paginasLidas) /
+                                currentLivro.paginasLidas).toInt()
                     )
                 else -> "Registre páginas e tempo para ver a previsão de término"
             }
@@ -110,20 +120,20 @@ fun TelaDetalhes(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CapaLivro(
-                        livro = livro,
+                        livro = currentLivro,
                         modifier = Modifier
                             .width(90.dp)
                             .aspectRatio(0.67f)
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = livro.titulo,
+                            text = currentLivro.titulo,
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             lineHeight = 22.sp
                         )
-                        Text(text = livro.autor, color = CorTextoSecundario, fontSize = 13.sp)
+                        Text(text = currentLivro.autor, color = CorTextoSecundario, fontSize = 13.sp)
                     }
                 }
 
@@ -134,8 +144,8 @@ fun TelaDetalhes(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = if (livro.paginasTotal > 0)
-                            "Páginas: ${livro.paginasLidas} / ${livro.paginasTotal} (${(progresso * 100).toInt()}%)"
+                        text = if (currentLivro.paginasTotal > 0)
+                            "Páginas: ${currentLivro.paginasLidas} / ${currentLivro.paginasTotal} (${(progresso * 100).toInt()}%)"
                         else
                             "Páginas: não informado",
                         color = Color.White,
@@ -143,8 +153,8 @@ fun TelaDetalhes(
                     )
                     BarraProgresso(progresso = progresso, corTrilho = CorCartao)
                     Text(
-                        text = if (livro.minutosLidos > 0)
-                            "Tempo lido: ${formatarMinutos(livro.minutosLidos)}"
+                        text = if (currentLivro.minutosLidos > 0)
+                            "Tempo lido: ${formatarMinutos(currentLivro.minutosLidos)}"
                         else
                             "Tempo lido: ainda não registrado",
                         color = CorTextoSecundario,
@@ -153,7 +163,7 @@ fun TelaDetalhes(
                     Text(text = previsao, color = CorDestaque, fontSize = 13.sp)
                 }
 
-                if (livro.sinopse.isNotBlank()) {
+                if (currentLivro.sinopse.isNotBlank()) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -161,7 +171,7 @@ fun TelaDetalhes(
                         colors = CardDefaults.cardColors(containerColor = CorCartao)
                     ) {
                         Text(
-                            text = livro.sinopse,
+                            text = currentLivro.sinopse,
                             color = CorTextoSecundario,
                             fontSize = 12.sp,
                             lineHeight = 18.sp,
@@ -221,13 +231,13 @@ fun TelaDetalhes(
                                     novosMinutos == null ->
                                         Toast.makeText(context, "Minutos inválidos.", Toast.LENGTH_SHORT).show()
                                     else -> {
-                                        aoAtualizar(
-                                            livro.copy(
-                                                paginasTotal = novoTotal,
-                                                paginasLidas = novaPagina,
-                                                minutosLidos = livro.minutosLidos + novosMinutos
-                                            )
+                                        val atualizado = currentLivro.copy(
+                                            paginasTotal = novoTotal,
+                                            paginasLidas = novaPagina,
+                                            minutosLidos = currentLivro.minutosLidos + novosMinutos
                                         )
+                                        livro = atualizado
+                                        aoAtualizar(atualizado)
                                         minutos = ""
                                         Toast.makeText(context, "Progresso salvo!", Toast.LENGTH_SHORT).show()
                                     }
@@ -256,7 +266,7 @@ fun TelaDetalhes(
                     contentPadding = PaddingValues(vertical = 16.dp)
                 ) {
                     Text(
-                        text = if (livro.anotacao.isBlank()) "Anotações" else "Anotações • ver e editar",
+                        text = if (currentLivro.anotacao.isBlank()) "Anotações" else "Anotações • ver e editar",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -277,11 +287,11 @@ fun TelaDetalhes(
                     AlertDialog(
                         onDismissRequest = { confirmarRemocao = false },
                         title = { Text("Remover livro?") },
-                        text = { Text("\"${livro.titulo}\" sairá da sua estante.") },
+                        text = { Text("\"${currentLivro.titulo}\" sairá da sua estante.") },
                         confirmButton = {
                             TextButton(onClick = {
                                 confirmarRemocao = false
-                                aoRemover(livro)
+                                aoRemover(currentLivro)
                                 aoVoltar()
                             }) { Text("Remover") }
                         },
@@ -293,16 +303,4 @@ fun TelaDetalhes(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PreviaTelaDetalhes() {
-    TelaDetalhes(
-        livro = LivrosIniciais.first(),
-        aoAtualizar = {},
-        aoRemover = {},
-        aoAbrirAnotacoes = {},
-        aoVoltar = {}
-    )
 }

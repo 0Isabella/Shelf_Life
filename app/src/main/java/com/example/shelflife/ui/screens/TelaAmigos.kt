@@ -1,6 +1,5 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,57 +24,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.shelflife.R
+import com.example.shelflife.data.local.AmigoDao
+import com.example.shelflife.data.AmigosIniciais
 import com.example.shelflife.model.Amigo
 import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import org.json.JSONArray
-
-private val UsuariosDoApp = listOf(
-    Amigo(0, "Ovin", 5400, "🐣", R.drawable.amigo_0, livrosLidos = 12, sequenciaDias = 21),
-    Amigo(1, "Cogumelito", 8550, "🍄", R.drawable.amigo_1, livrosLidos = 7, sequenciaDias = 4),
-    Amigo(2, "Sapinho", 3000, "🐸", R.drawable.amigo_2, livrosLidos = 15, sequenciaDias = 1),
-    Amigo(3, "Nome", 1200, "🙂", R.drawable.amigo_3, livrosLidos = 3, sequenciaDias = 9),
-    Amigo(4, "Raposa", 4300, "🦊", R.drawable.amigo_4, livrosLidos = 9, sequenciaDias = 6),
-    Amigo(5, "Gatinha", 6100, "🐱", R.drawable.amigo_5, livrosLidos = 11, sequenciaDias = 12),
-    Amigo(6, "Lua", 2700, "🌙", R.drawable.amigo_6, livrosLidos = 5, sequenciaDias = 3),
-    Amigo(7, "Livreiro", 9800, "📚", R.drawable.amigo_7, livrosLidos = 24, sequenciaDias = 40)
-)
-
-object AmigosStorage {
-    private const val ARQUIVO = "shelflife_amigos"
-    private const val CHAVE = "ids_amigos"
-
-    private fun prefs(context: Context) =
-        context.getSharedPreferences(ARQUIVO, Context.MODE_PRIVATE)
-
-    fun carregar(context: Context): List<Amigo> {
-        val texto = prefs(context).getString(CHAVE, null) ?: return emptyList()
-        return runCatching {
-            val array = JSONArray(texto)
-            List(array.length()) { array.getInt(it) }
-        }.getOrDefault(emptyList())
-            .mapNotNull { id -> UsuariosDoApp.firstOrNull { it.id == id } }
-    }
-
-    fun salvar(context: Context, amigos: List<Amigo>) {
-        prefs(context).edit()
-            .putString(CHAVE, JSONArray(amigos.map { it.id }).toString())
-            .apply()
-    }
-
-    fun carregarNota(context: Context, amigoId: Int): String =
-        prefs(context).getString("nota_$amigoId", "") ?: ""
-
-    fun salvarNota(context: Context, amigoId: Int, nota: String) {
-        prefs(context).edit().putString("nota_$amigoId", nota).apply()
-    }
-}
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun TelaAmigos(
@@ -91,7 +51,7 @@ fun TelaAmigos(
     val resultados = if (termo.isEmpty()) {
         emptyList()
     } else {
-        UsuariosDoApp.filter { it.nome.contains(termo, ignoreCase = true) }
+        AmigosIniciais.filter { it.nome.contains(termo, ignoreCase = true) }
     }
 
     LazyColumn(
@@ -224,15 +184,28 @@ fun TelaAmigos(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaDetalheAmigo(
-    amigo: Amigo?,
-    amigos: List<Amigo>,
+    amigoId: Int,
+    amigoDao: AmigoDao,
     aoVoltar: () -> Unit,
     aoRemover: (Amigo) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var nota by remember(amigo?.id) {
-        mutableStateOf(amigo?.let { AmigosStorage.carregarNota(context, it.id) } ?: "")
+    val coroutineScope = rememberCoroutineScope()
+    var amigo by remember { mutableStateOf<Amigo?>(null) }
+    var todosAmigos by remember { mutableStateOf<List<Amigo>>(emptyList()) }
+    var nota by remember { mutableStateOf("") }
+
+    LaunchedEffect(amigoId) {
+        withContext(Dispatchers.IO) {
+            val encontrado = amigoDao.buscarPorId(amigoId)
+            val lista = amigoDao.buscarTodos()
+            withContext(Dispatchers.Main) {
+                amigo = encontrado
+                todosAmigos = lista
+                nota = encontrado?.nota ?: ""
+            }
+        }
     }
 
     Column(
@@ -257,7 +230,8 @@ fun TelaDetalheAmigo(
             )
         )
 
-        if (amigo == null) {
+        val currentAmigo = amigo
+        if (currentAmigo == null) {
             Text(
                 text = "Amigo não encontrado na sua lista.",
                 color = CorTextoSecundario,
@@ -274,33 +248,33 @@ fun TelaDetalheAmigo(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AvatarUsuario(usuario = amigo, tamanho = 96)
+                AvatarUsuario(usuario = currentAmigo, tamanho = 96)
                 Text(
-                    text = amigo.nome,
+                    text = currentAmigo.nome,
                     color = Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 CartaoInfo(titulo = "Leitura") {
-                    LinhaInfo("Tempo total", tempoLegivel(amigo.minutosLidos))
-                    LinhaInfo("Livros lidos", "${amigo.livrosLidos}")
-                    LinhaInfo("Sequência", "${amigo.sequenciaDias} dias seguidos")
+                    LinhaInfo("Tempo total", tempoLegivel(currentAmigo.minutosLidos))
+                    LinhaInfo("Livros lidos", "${currentAmigo.livrosLidos}")
+                    LinhaInfo("Sequência", "${currentAmigo.sequenciaDias} dias seguidos")
                 }
 
-                val mediaPorLivro = if (amigo.livrosLidos > 0) {
-                    tempoLegivel(amigo.minutosLidos / amigo.livrosLidos)
+                val mediaPorLivro = if (currentAmigo.livrosLidos > 0) {
+                    tempoLegivel(currentAmigo.minutosLidos / currentAmigo.livrosLidos)
                 } else {
                     "—"
                 }
-                CartaoInfo(titulo = "Entre os seus ${amigos.size} amigos") {
+                CartaoInfo(titulo = "Entre os seus ${todosAmigos.size} amigos") {
                     LinhaInfo("Tempo médio por livro", mediaPorLivro)
-                    LinhaInfo("Posição em tempo", posicao(amigos, amigo) { it.minutosLidos })
-                    LinhaInfo("Posição em livros", posicao(amigos, amigo) { it.livrosLidos })
-                    LinhaInfo("Posição em sequência", posicao(amigos, amigo) { it.sequenciaDias })
+                    LinhaInfo("Posição em tempo", posicao(todosAmigos, currentAmigo) { it.minutosLidos })
+                    LinhaInfo("Posição em livros", posicao(todosAmigos, currentAmigo) { it.livrosLidos })
+                    LinhaInfo("Posição em sequência", posicao(todosAmigos, currentAmigo) { it.sequenciaDias })
                 }
 
-                CartaoInfo(titulo = "Sua nota sobre ${amigo.nome}") {
+                CartaoInfo(titulo = "Sua nota sobre ${currentAmigo.nome}") {
                     OutlinedTextField(
                         value = nota,
                         onValueChange = { if (it.length <= 200) nota = it },
@@ -320,8 +294,14 @@ fun TelaDetalheAmigo(
                     )
                     Button(
                         onClick = {
-                            AmigosStorage.salvarNota(context, amigo.id, nota.trim())
-                            Toast.makeText(context, "Nota salva!", Toast.LENGTH_SHORT).show()
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val atualizado = currentAmigo.copy(nota = nota.trim())
+                                amigoDao.atualizar(atualizado)
+                                withContext(Dispatchers.Main) {
+                                    amigo = atualizado
+                                    Toast.makeText(context, "Nota salva!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = CorDestaque)
@@ -332,13 +312,18 @@ fun TelaDetalheAmigo(
 
                 OutlinedButton(
                     onClick = {
-                        aoRemover(amigo)
-                        Toast.makeText(
-                            context,
-                            "${amigo.nome} removido dos amigos",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        aoVoltar()
+                        coroutineScope.launch(Dispatchers.IO) {
+                            amigoDao.deletar(currentAmigo)
+                            withContext(Dispatchers.Main) {
+                                aoRemover(currentAmigo)
+                                Toast.makeText(
+                                    context,
+                                    "${currentAmigo.nome} removido dos amigos",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                aoVoltar()
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -445,15 +430,4 @@ private fun CartaoUsuario(
             acao()
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PreviaTelaAmigos() {
-    TelaAmigos(
-        amigos = emptyList(),
-        aoAdicionar = {},
-        aoRemover = {},
-        aoAbrirDetalhe = {}
-    )
 }

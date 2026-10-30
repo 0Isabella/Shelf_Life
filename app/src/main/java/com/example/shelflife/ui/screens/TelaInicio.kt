@@ -1,4 +1,4 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
 import android.widget.Toast
 import androidx.annotation.DrawableRes
@@ -35,8 +35,8 @@ import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import com.example.shelflife.ui.theme.components.CampoTexto
-import com.example.shelflife.ui.theme.components.CapaLivro
+import com.example.shelflife.ui.components.CampoTexto
+import com.example.shelflife.ui.components.CapaLivro
 import com.example.shelflife.util.NOME_USUARIO
 import com.example.shelflife.util.formatarMinutos
 

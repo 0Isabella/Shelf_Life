@@ -1,4 +1,4 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,8 +32,8 @@ import com.example.shelflife.model.Livro
 import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import com.example.shelflife.ui.theme.components.BarraProgresso
-import com.example.shelflife.ui.theme.components.CapaLivro
+import com.example.shelflife.ui.components.BarraProgresso
+import com.example.shelflife.ui.components.CapaLivro
 import com.example.shelflife.util.MINUTOS_POR_NIVEL
 import com.example.shelflife.util.NOME_USUARIO
 import com.example.shelflife.util.formatarMinutos

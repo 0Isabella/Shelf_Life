@@ -141,7 +141,8 @@ fun AppNavigation() {
                     amigos = amigos,
                     aoAdicionarLivro = { titulo -> adicionarLivro(titulo, "", 0) },
                     aoClicarLivro = { livro -> navController.navigate(Rotas.detalheLivro(livro.id)) },
-                    aoVerRanking = { navController.navigate(Rotas.RANKING) }
+                    aoVerRanking = { navController.navigate(Rotas.RANKING)},
+                    aoAbrirPerfil = { navController.navigate(Rotas.PERFIL)}
                 )
             }
 

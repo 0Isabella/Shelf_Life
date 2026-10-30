@@ -47,6 +47,7 @@ fun TelaInicio(
     aoAdicionarLivro: (String) -> Unit,
     aoClicarLivro: (Livro) -> Unit,
     aoVerRanking: () -> Unit,
+    aoAbrirPerfil: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val minutosTotais = livros.sumOf { it.minutosLidos }
@@ -63,7 +64,8 @@ fun TelaInicio(
         CartaoResumoUsuario(
             nome = NOME_USUARIO,
             resumo = "Total lido: ${formatarMinutos(minutosTotais)}",
-            imagemRes = R.drawable.usuario
+            imagemRes = R.drawable.usuario,
+            aoClicar = aoAbrirPerfil
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -101,12 +103,14 @@ private fun CartaoResumoUsuario(
     nome: String,
     resumo: String,
     @DrawableRes imagemRes: Int? = null,
+    aoClicar: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CorCartao)
+            .clickable(onClick = aoClicar)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -268,6 +272,7 @@ private fun PreviaTelaInicio() {
         ),
         aoAdicionarLivro = {},
         aoClicarLivro = {},
-        aoVerRanking = {}
+        aoVerRanking = {},
+        aoAbrirPerfil = {}
     )
 }

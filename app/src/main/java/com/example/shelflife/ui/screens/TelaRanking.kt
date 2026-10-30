@@ -1,4 +1,4 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image

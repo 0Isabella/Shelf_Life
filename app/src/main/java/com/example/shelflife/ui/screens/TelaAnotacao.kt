@@ -1,4 +1,4 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -22,7 +22,7 @@ import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import com.example.shelflife.ui.theme.components.CampoTexto
+import com.example.shelflife.ui.components.CampoTexto
 
 private const val LIMITE_ANOTACAO = 1000
 

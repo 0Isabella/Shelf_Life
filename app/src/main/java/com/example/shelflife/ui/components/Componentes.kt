@@ -1,4 +1,4 @@
-package com.example.shelflife.ui.theme.components
+package com.example.shelflife.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

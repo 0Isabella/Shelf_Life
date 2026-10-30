@@ -1,6 +1,5 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,8 +26,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.shelflife.R
-import com.example.shelflife.data.AmigoDao
+import com.example.shelflife.data.local.AmigoDao
+import com.example.shelflife.data.AmigosIniciais
 import com.example.shelflife.model.Amigo
 import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
@@ -37,17 +36,6 @@ import com.example.shelflife.ui.theme.CorTextoSecundario
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-val UsuariosDoApp = listOf(
-    Amigo(0, "Ovin", 5400, "🐣", R.drawable.amigo_0, livrosLidos = 12, sequenciaDias = 21),
-    Amigo(1, "Cogumelito", 8550, "🍄", R.drawable.amigo_1, livrosLidos = 7, sequenciaDias = 4),
-    Amigo(2, "Sapinho", 3000, "🐸", R.drawable.amigo_2, livrosLidos = 15, sequenciaDias = 1),
-    Amigo(3, "Nome", 1200, "🙂", R.drawable.amigo_3, livrosLidos = 3, sequenciaDias = 9),
-    Amigo(4, "Raposa", 4300, "🦊", R.drawable.amigo_4, livrosLidos = 9, sequenciaDias = 6),
-    Amigo(5, "Gatinha", 6100, "🐱", R.drawable.amigo_5, livrosLidos = 11, sequenciaDias = 12),
-    Amigo(6, "Lua", 2700, "🌙", R.drawable.amigo_6, livrosLidos = 5, sequenciaDias = 3),
-    Amigo(7, "Livreiro", 9800, "📚", R.drawable.amigo_7, livrosLidos = 24, sequenciaDias = 40)
-)
 
 @Composable
 fun TelaAmigos(
@@ -63,7 +51,7 @@ fun TelaAmigos(
     val resultados = if (termo.isEmpty()) {
         emptyList()
     } else {
-        UsuariosDoApp.filter { it.nome.contains(termo, ignoreCase = true) }
+        AmigosIniciais.filter { it.nome.contains(termo, ignoreCase = true) }
     }
 
     LazyColumn(

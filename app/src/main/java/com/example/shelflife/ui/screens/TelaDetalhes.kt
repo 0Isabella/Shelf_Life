@@ -1,4 +1,4 @@
-package com.example.shelflife.ui.theme.screens
+package com.example.shelflife.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -16,15 +16,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.shelflife.data.LivroDao
+import com.example.shelflife.data.local.LivroDao
 import com.example.shelflife.model.Livro
 import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import com.example.shelflife.ui.theme.components.BarraProgresso
-import com.example.shelflife.ui.theme.components.CampoTexto
-import com.example.shelflife.ui.theme.components.CapaLivro
+import com.example.shelflife.ui.components.BarraProgresso
+import com.example.shelflife.ui.components.CampoTexto
+import com.example.shelflife.ui.components.CapaLivro
 import com.example.shelflife.util.formatarMinutos
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -18,7 +18,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.shelflife.data.AppDatabase
+import com.example.shelflife.data.local.AppDatabase
+import com.example.shelflife.data.AmigosIniciais
 import com.example.shelflife.data.LivrosIniciais
 import com.example.shelflife.model.Amigo
 import com.example.shelflife.model.Livro
@@ -26,7 +27,7 @@ import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
-import com.example.shelflife.ui.theme.screens.*
+import com.example.shelflife.ui.screens.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,7 +65,14 @@ fun AppNavigation() {
             }
 
             val amigosDoBanco = db.amigoDao().buscarTodos()
-            amigos.addAll(amigosDoBanco)
+            if (amigosDoBanco.isEmpty()) {
+                AmigosIniciais.forEach { amigo ->
+                    db.amigoDao().inserir(amigo)
+                }
+                amigos.addAll(db.amigoDao().buscarTodos())
+            } else {
+                amigos.addAll(amigosDoBanco)
+            }
         }
     }
 

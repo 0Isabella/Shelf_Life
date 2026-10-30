@@ -1,4 +1,4 @@
-package com.example.shelflife.data
+package com.example.shelflife.data.local
 
 import androidx.room.Dao
 import androidx.room.Delete

@@ -1,4 +1,4 @@
-package com.example.shelflife.data
+package com.example.shelflife.data.local
 
 import android.content.Context
 import androidx.room.Database

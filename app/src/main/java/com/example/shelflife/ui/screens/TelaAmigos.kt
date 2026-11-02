@@ -1,0 +1,433 @@
+package com.example.shelflife.ui.screens
+
+import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.shelflife.data.local.AmigoDao
+import com.example.shelflife.data.AmigosIniciais
+import com.example.shelflife.model.Amigo
+import com.example.shelflife.ui.theme.CorCartao
+import com.example.shelflife.ui.theme.CorDestaque
+import com.example.shelflife.ui.theme.CorFundo
+import com.example.shelflife.ui.theme.CorTextoSecundario
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+@Composable
+fun TelaAmigos(
+    amigos: List<Amigo>,
+    aoAdicionar: (Amigo) -> Unit,
+    aoRemover: (Amigo) -> Unit,
+    aoAbrirDetalhe: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var busca by remember { mutableStateOf("") }
+
+    val termo = busca.trim()
+    val resultados = if (termo.isEmpty()) {
+        emptyList()
+    } else {
+        AmigosIniciais.filter { it.nome.contains(termo, ignoreCase = true) }
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(CorFundo)
+            .imePadding(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            Column {
+                Text(
+                    text = "Amigos",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Procure alguém pelo nome e adicione à sua lista",
+                    color = CorTextoSecundario,
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = busca,
+                    onValueChange = { if (it.length <= 30) busca = it },
+                    label = { Text(text = "Buscar usuário") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    },
+                    trailingIcon = {
+                        if (busca.isNotEmpty()) {
+                            IconButton(onClick = { busca = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Limpar busca",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CorDestaque,
+                        unfocusedBorderColor = CorTextoSecundario,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = CorDestaque,
+                        unfocusedLabelColor = CorTextoSecundario,
+                        cursorColor = CorDestaque
+                    )
+                )
+            }
+        }
+
+        if (termo.isEmpty()) {
+            item {
+                Text(
+                    text = "Digite um nome para encontrar alguém.",
+                    color = CorTextoSecundario,
+                    fontSize = 14.sp
+                )
+            }
+        } else if (resultados.isEmpty()) {
+            item {
+                Text(
+                    text = "Nenhum usuário encontrado para \"$termo\".",
+                    color = CorTextoSecundario,
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            items(resultados, key = { "busca-${it.id}" }) { usuario ->
+                val jaAmigo = amigos.any { it.id == usuario.id }
+                CartaoUsuario(usuario = usuario) {
+                    if (jaAmigo) {
+                        Text(text = "Amigo ✓", color = CorTextoSecundario, fontSize = 13.sp)
+                    } else {
+                        Button(
+                            onClick = { aoAdicionar(usuario) },
+                            colors = ButtonDefaults.buttonColors(containerColor = CorDestaque)
+                        ) {
+                            Text(text = "Adicionar", color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Seus amigos (${amigos.size})",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (amigos.isEmpty()) {
+            item {
+                Text(
+                    text = "Você ainda não adicionou ninguém.",
+                    color = CorTextoSecundario,
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            items(amigos, key = { "amigo-${it.id}" }) { amigo ->
+                CartaoUsuario(usuario = amigo, aoClicar = { aoAbrirDetalhe(amigo.id) }) {
+                    IconButton(onClick = { aoRemover(amigo) }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Remover ${amigo.nome}",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TelaDetalheAmigo(
+    amigoId: Int,
+    amigoDao: AmigoDao,
+    aoVoltar: () -> Unit,
+    aoRemover: (Amigo) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var amigo by remember { mutableStateOf<Amigo?>(null) }
+    var todosAmigos by remember { mutableStateOf<List<Amigo>>(emptyList()) }
+    var nota by remember { mutableStateOf("") }
+
+    LaunchedEffect(amigoId) {
+        withContext(Dispatchers.IO) {
+            val encontrado = amigoDao.buscarPorId(amigoId)
+            val lista = amigoDao.buscarTodos()
+            withContext(Dispatchers.Main) {
+                amigo = encontrado
+                todosAmigos = lista
+                nota = encontrado?.nota ?: ""
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(CorFundo)
+    ) {
+        TopAppBar(
+            title = { Text(text = amigo?.nome ?: "Amigo") },
+            navigationIcon = {
+                IconButton(onClick = aoVoltar) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Voltar"
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = CorCartao,
+                titleContentColor = Color.White,
+                navigationIconContentColor = Color.White
+            )
+        )
+
+        val currentAmigo = amigo
+        if (currentAmigo == null) {
+            Text(
+                text = "Amigo não encontrado na sua lista.",
+                color = CorTextoSecundario,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(16.dp)
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AvatarUsuario(usuario = currentAmigo, tamanho = 96)
+                Text(
+                    text = currentAmigo.nome,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                CartaoInfo(titulo = "Leitura") {
+                    LinhaInfo("Tempo total", tempoLegivel(currentAmigo.minutosLidos))
+                    LinhaInfo("Livros lidos", "${currentAmigo.livrosLidos}")
+                    LinhaInfo("Sequência", "${currentAmigo.sequenciaDias} dias seguidos")
+                }
+
+                val mediaPorLivro = if (currentAmigo.livrosLidos > 0) {
+                    tempoLegivel(currentAmigo.minutosLidos / currentAmigo.livrosLidos)
+                } else {
+                    "—"
+                }
+                CartaoInfo(titulo = "Entre os seus ${todosAmigos.size} amigos") {
+                    LinhaInfo("Tempo médio por livro", mediaPorLivro)
+                    LinhaInfo("Posição em tempo", posicao(todosAmigos, currentAmigo) { it.minutosLidos })
+                    LinhaInfo("Posição em livros", posicao(todosAmigos, currentAmigo) { it.livrosLidos })
+                    LinhaInfo("Posição em sequência", posicao(todosAmigos, currentAmigo) { it.sequenciaDias })
+                }
+
+                CartaoInfo(titulo = "Sua nota sobre ${currentAmigo.nome}") {
+                    OutlinedTextField(
+                        value = nota,
+                        onValueChange = { if (it.length <= 200) nota = it },
+                        label = { Text(text = "Ex.: indicou um livro bom") },
+                        minLines = 3,
+                        maxLines = 5,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = CorDestaque,
+                            unfocusedBorderColor = CorTextoSecundario,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedLabelColor = CorDestaque,
+                            unfocusedLabelColor = CorTextoSecundario,
+                            cursorColor = CorDestaque
+                        )
+                    )
+                    Button(
+                        onClick = {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val atualizado = currentAmigo.copy(nota = nota.trim())
+                                amigoDao.atualizar(atualizado)
+                                withContext(Dispatchers.Main) {
+                                    amigo = atualizado
+                                    Toast.makeText(context, "Nota salva!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = CorDestaque)
+                    ) {
+                        Text(text = "Salvar nota", color = Color.White)
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            amigoDao.deletar(currentAmigo)
+                            withContext(Dispatchers.Main) {
+                                aoRemover(currentAmigo)
+                                Toast.makeText(
+                                    context,
+                                    "${currentAmigo.nome} removido dos amigos",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                aoVoltar()
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "Remover amigo", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+private fun tempoLegivel(minutos: Int): String = "${minutos / 60}h ${minutos % 60}min"
+
+private fun posicao(todos: List<Amigo>, amigo: Amigo, criterio: (Amigo) -> Int): String {
+    val posicao = todos.sortedByDescending(criterio).indexOfFirst { it.id == amigo.id } + 1
+    return "${posicao}º de ${todos.size}"
+}
+
+@Composable
+private fun AvatarUsuario(usuario: Amigo, tamanho: Int) {
+    Box(
+        modifier = Modifier
+            .size(tamanho.dp)
+            .clip(CircleShape)
+            .background(Color.DarkGray),
+        contentAlignment = Alignment.Center
+    ) {
+        if (usuario.imagemRes != null) {
+            Image(
+                painter = painterResource(id = usuario.imagemRes),
+                contentDescription = "Foto de ${usuario.nome}",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(text = usuario.emoji, fontSize = (tamanho * 0.45f).sp)
+        }
+    }
+}
+
+@Composable
+private fun CartaoInfo(titulo: String, conteudo: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CorCartao)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = titulo,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            conteudo()
+        }
+    }
+}
+
+@Composable
+private fun LinhaInfo(rotulo: String, valor: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = rotulo, color = CorTextoSecundario, fontSize = 14.sp)
+        Text(text = valor, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun CartaoUsuario(
+    usuario: Amigo,
+    aoClicar: (() -> Unit)? = null,
+    acao: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (aoClicar != null) Modifier.clickable(onClick = aoClicar) else Modifier),
+        colors = CardDefaults.cardColors(containerColor = CorCartao)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AvatarUsuario(usuario = usuario, tamanho = 48)
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = usuario.nome,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${tempoLegivel(usuario.minutosLidos)} · ${usuario.livrosLidos} livros",
+                    color = CorTextoSecundario,
+                    fontSize = 13.sp
+                )
+            }
+            acao()
+        }
+    }
+}

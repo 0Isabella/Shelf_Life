@@ -5,12 +5,13 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import com.example.shelflife.model.Livro
 
 @Dao
 interface LivroDao {
     @Query("SELECT * FROM livros")
-    suspend fun buscarTodos(): List<Livro>
+    fun buscarTodos(): Flow<List<Livro>>
 
     @Query("SELECT * FROM livros WHERE id = :id")
     suspend fun buscarPorId(id: Int): Livro?

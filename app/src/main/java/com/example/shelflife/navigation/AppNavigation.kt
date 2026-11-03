@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,18 +20,17 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.shelflife.data.local.AppDatabase
-import com.example.shelflife.data.AmigosIniciais
-import com.example.shelflife.data.LivrosIniciais
-import com.example.shelflife.model.Amigo
-import com.example.shelflife.model.Livro
+import com.example.shelflife.data.repository.AmigoRepository
+import com.example.shelflife.data.repository.LivroRepository
 import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
 import com.example.shelflife.ui.theme.CorFundo
 import com.example.shelflife.ui.theme.CorTextoSecundario
 import com.example.shelflife.ui.screens.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.shelflife.viewmodel.AmigosViewModel
+import com.example.shelflife.viewmodel.AmigosViewModelFactory
+import com.example.shelflife.viewmodel.LivrosViewModel
+import com.example.shelflife.viewmodel.LivrosViewModelFactory
 
 private data class ItemBarra(val rota: String, val emoji: String, val rotulo: String)
 
@@ -46,90 +46,19 @@ private val itensBarra = listOf(
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
+
     val db = remember { AppDatabase.obterInstancia(context) }
-    val coroutineScope = rememberCoroutineScope()
+    val livrosViewModel: LivrosViewModel = viewModel(
+        factory = LivrosViewModelFactory(LivroRepository(db.livroDao()))
+    )
+    val amigosViewModel: AmigosViewModel = viewModel(
+        factory = AmigosViewModelFactory(AmigoRepository(db.amigoDao()))
+    )
 
-    val amigos = remember { mutableStateListOf<Amigo>() }
-    val livros = remember { mutableStateListOf<Livro>() }
-
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val livrosDoBanco = db.livroDao().buscarTodos()
-            if (livrosDoBanco.isEmpty()) {
-                LivrosIniciais.forEach { livro ->
-                    db.livroDao().inserir(livro)
-                }
-                livros.addAll(db.livroDao().buscarTodos())
-            } else {
-                livros.addAll(livrosDoBanco)
-            }
-
-            val amigosDoBanco = db.amigoDao().buscarTodos()
-            if (amigosDoBanco.isEmpty()) {
-                AmigosIniciais.forEach { amigo ->
-                    db.amigoDao().inserir(amigo)
-                }
-                amigos.addAll(db.amigoDao().buscarTodos())
-            } else {
-                amigos.addAll(amigosDoBanco)
-            }
-        }
-    }
-
-    fun adicionarAmigo(amigo: Amigo) {
-        coroutineScope.launch(Dispatchers.IO) {
-            if (amigos.none { it.id == amigo.id }) {
-                val id = db.amigoDao().inserir(amigo)
-                val amigoComId = amigo.copy(id = id.toInt())
-                withContext(Dispatchers.Main) {
-                    amigos.add(0, amigoComId)
-                }
-            }
-        }
-    }
-
-    fun removerAmigo(amigo: Amigo) {
-        coroutineScope.launch(Dispatchers.IO) {
-            db.amigoDao().deletar(amigo)
-            withContext(Dispatchers.Main) {
-                amigos.removeAll { it.id == amigo.id }
-            }
-        }
-    }
-
-    fun adicionarLivro(titulo: String, autor: String, paginas: Int) {
-        coroutineScope.launch(Dispatchers.IO) {
-            val novoLivro = Livro(
-                titulo = titulo,
-                autor = autor.ifBlank { "Autor desconhecido" },
-                paginasTotal = paginas
-            )
-            val id = db.livroDao().inserir(novoLivro)
-            val livroComId = novoLivro.copy(id = id.toInt())
-            withContext(Dispatchers.Main) {
-                livros.add(0, livroComId)
-            }
-        }
-    }
-
-    fun removerLivro(livro: Livro) {
-        coroutineScope.launch(Dispatchers.IO) {
-            db.livroDao().deletar(livro)
-            withContext(Dispatchers.Main) {
-                livros.removeAll { it.id == livro.id }
-            }
-        }
-    }
-
-    fun atualizarLivro(livro: Livro) {
-        coroutineScope.launch(Dispatchers.IO) {
-            db.livroDao().atualizar(livro)
-            withContext(Dispatchers.Main) {
-                val indice = livros.indexOfFirst { it.id == livro.id }
-                if (indice != -1) livros[indice] = livro
-            }
-        }
-    }
+    val livrosUiState by livrosViewModel.uiState.collectAsState()
+    val amigosUiState by amigosViewModel.uiState.collectAsState()
+    val livros = livrosUiState.livros
+    val amigos = amigosUiState.amigos
 
     val entradaAtual by navController.currentBackStackEntryAsState()
     val rotaAtual = entradaAtual?.destination?.route
@@ -170,9 +99,10 @@ fun AppNavigation() {
                 TelaInicio(
                     livros = livros,
                     amigos = amigos,
-                    aoAdicionarLivro = { titulo -> adicionarLivro(titulo, "", 0) },
+                    aoAdicionarLivro = { titulo -> livrosViewModel.adicionarLivro(titulo, "", 0) },
                     aoClicarLivro = { livro -> navController.navigate(Rotas.detalheLivro(livro.id)) },
-                    aoVerRanking = { navController.navigate(Rotas.RANKING) }
+                    aoVerRanking = { navController.navigate(Rotas.RANKING) },
+                    aoAbrirPerfil = { navController.navigate(Rotas.PERFIL) }
                 )
             }
 
@@ -180,7 +110,7 @@ fun AppNavigation() {
                 TelaRanking(
                     amigos = amigos,
                     aoClicarAmigo = { amigo -> navController.navigate(Rotas.detalheAmigo(amigo.id)) },
-                    aoRemoverAmigo = { amigo -> removerAmigo(amigo) }
+                    aoRemoverAmigo = { amigo -> amigosViewModel.removerAmigo(amigo) }
                 )
             }
 
@@ -194,7 +124,7 @@ fun AppNavigation() {
 
             composable(Rotas.ADD_LIVRO) {
                 TelaAddLivro(
-                    aoSalvar = { titulo, autor, paginas -> adicionarLivro(titulo, autor, paginas) },
+                    aoSalvar = { titulo, autor, paginas -> livrosViewModel.adicionarLivro(titulo, autor, paginas) },
                     aoVoltar = { navController.popBackStack() }
                 )
             }
@@ -202,8 +132,8 @@ fun AppNavigation() {
             composable(Rotas.AMIGOS) {
                 TelaAmigos(
                     amigos = amigos,
-                    aoAdicionar = { amigo -> adicionarAmigo(amigo) },
-                    aoRemover = { amigo -> removerAmigo(amigo) },
+                    aoAdicionar = { amigo -> amigosViewModel.adicionarAmigo(amigo) },
+                    aoRemover = { amigo -> amigosViewModel.removerAmigo(amigo) },
                     aoAbrirDetalhe = { id -> navController.navigate(Rotas.detalheAmigo(id)) }
                 )
             }
@@ -225,10 +155,11 @@ fun AppNavigation() {
             ) { entrada ->
                 val id = entrada.arguments?.getInt("amigoId") ?: -1
                 TelaDetalheAmigo(
-                    amigoId = id,
-                    amigoDao = db.amigoDao(),
+                    amigo = amigos.firstOrNull { it.id == id },
+                    todosAmigos = amigos,
+                    aoAtualizar = { amigo -> amigosViewModel.atualizarAmigo(amigo) },
                     aoVoltar = { navController.popBackStack() },
-                    aoRemover = { amigo -> removerAmigo(amigo) }
+                    aoRemover = { amigo -> amigosViewModel.removerAmigo(amigo) }
                 )
             }
 
@@ -238,10 +169,9 @@ fun AppNavigation() {
             ) { entrada ->
                 val id = entrada.arguments?.getInt("livroId") ?: -1
                 TelaDetalhes(
-                    livroId = id,
-                    livroDao = db.livroDao(),
-                    aoAtualizar = { livro -> atualizarLivro(livro) },
-                    aoRemover = { livro -> removerLivro(livro) },
+                    livro = livros.firstOrNull { it.id == id },
+                    aoAtualizar = { livro -> livrosViewModel.atualizarLivro(livro) },
+                    aoRemover = { livro -> livrosViewModel.removerLivro(livro) },
                     aoAbrirAnotacoes = { navController.navigate(Rotas.anotacao(id)) },
                     aoVoltar = { navController.popBackStack() }
                 )
@@ -254,7 +184,7 @@ fun AppNavigation() {
                 val id = entrada.arguments?.getInt("livroId") ?: -1
                 TelaAnotacao(
                     livro = livros.firstOrNull { id == it.id },
-                    aoSalvar = { livro -> atualizarLivro(livro) },
+                    aoSalvar = { livro -> livrosViewModel.atualizarLivro(livro) },
                     aoVoltar = { navController.popBackStack() }
                 )
             }

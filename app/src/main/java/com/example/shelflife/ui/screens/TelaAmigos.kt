@@ -131,7 +131,7 @@ fun TelaAmigos(
             }
         } else {
             items(resultados, key = { "busca-${it.id}" }) { usuario ->
-                val jaAmigo = amigos.any { it.id == usuario.id }
+                val jaAmigo = amigos.any { it.nome == usuario.nome }
                 CartaoUsuario(usuario = usuario) {
                     if (jaAmigo) {
                         Text(text = "Amigo ✓", color = CorTextoSecundario, fontSize = 13.sp)
@@ -184,29 +184,19 @@ fun TelaAmigos(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaDetalheAmigo(
-    amigoId: Int,
-    amigoDao: AmigoDao,
+    amigo: Amigo?,
+    todosAmigos: List<Amigo>,
+    aoAtualizar: (Amigo) -> Unit,
     aoVoltar: () -> Unit,
     aoRemover: (Amigo) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    var amigo by remember { mutableStateOf<Amigo?>(null) }
-    var todosAmigos by remember { mutableStateOf<List<Amigo>>(emptyList()) }
-    var nota by remember { mutableStateOf("") }
 
-    LaunchedEffect(amigoId) {
-        withContext(Dispatchers.IO) {
-            val encontrado = amigoDao.buscarPorId(amigoId)
-            val lista = amigoDao.buscarTodos()
-            withContext(Dispatchers.Main) {
-                amigo = encontrado
-                todosAmigos = lista
-                nota = encontrado?.nota ?: ""
-            }
-        }
-    }
+    var amigoExibido by remember { mutableStateOf(amigo) }
+    LaunchedEffect(amigo) { if (amigo != null) amigoExibido = amigo }
+    val amigo = amigo ?: amigoExibido
+    var nota by remember(amigo?.id) { mutableStateOf(amigo?.nota ?: "") }
 
     Column(
         modifier = modifier
@@ -294,14 +284,8 @@ fun TelaDetalheAmigo(
                     )
                     Button(
                         onClick = {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                val atualizado = currentAmigo.copy(nota = nota.trim())
-                                amigoDao.atualizar(atualizado)
-                                withContext(Dispatchers.Main) {
-                                    amigo = atualizado
-                                    Toast.makeText(context, "Nota salva!", Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                            aoAtualizar(currentAmigo.copy(nota = nota.trim()))
+                            Toast.makeText(context, "Nota salva!", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = CorDestaque)
@@ -312,18 +296,13 @@ fun TelaDetalheAmigo(
 
                 OutlinedButton(
                     onClick = {
-                        coroutineScope.launch(Dispatchers.IO) {
-                            amigoDao.deletar(currentAmigo)
-                            withContext(Dispatchers.Main) {
-                                aoRemover(currentAmigo)
-                                Toast.makeText(
-                                    context,
-                                    "${currentAmigo.nome} removido dos amigos",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                aoVoltar()
-                            }
-                        }
+                        aoRemover(currentAmigo)
+                        Toast.makeText(
+                            context,
+                            "${currentAmigo.nome} removido dos amigos",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        aoVoltar()
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -333,7 +312,6 @@ fun TelaDetalheAmigo(
         }
     }
 }
-
 private fun tempoLegivel(minutos: Int): String = "${minutos / 60}h ${minutos % 60}min"
 
 private fun posicao(todos: List<Amigo>, amigo: Amigo, criterio: (Amigo) -> Int): String {

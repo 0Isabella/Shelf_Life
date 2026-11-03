@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.shelflife.data.local.LivroDao
 import com.example.shelflife.model.Livro
 import com.example.shelflife.ui.theme.CorCartao
 import com.example.shelflife.ui.theme.CorDestaque
@@ -26,14 +25,11 @@ import com.example.shelflife.ui.components.BarraProgresso
 import com.example.shelflife.ui.components.CampoTexto
 import com.example.shelflife.ui.components.CapaLivro
 import com.example.shelflife.util.formatarMinutos
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaDetalhes(
-    livroId: Int,
-    livroDao: LivroDao,
+    livro: Livro?,
     aoAtualizar: (Livro) -> Unit,
     aoRemover: (Livro) -> Unit,
     aoAbrirAnotacoes: () -> Unit,
@@ -41,13 +37,10 @@ fun TelaDetalhes(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var livro by remember { mutableStateOf<Livro?>(null) }
 
-    LaunchedEffect(livroId) {
-        withContext(Dispatchers.IO) {
-            livro = livroDao.buscarPorId(livroId)
-        }
-    }
+    var livroExibido by remember { mutableStateOf(livro) }
+    LaunchedEffect(livro) { if (livro != null) livroExibido = livro }
+    val livro = livro ?: livroExibido
 
     var total by remember(livro?.id) {
         mutableStateOf(livro?.paginasTotal?.takeIf { it > 0 }?.toString() ?: "")
@@ -81,7 +74,7 @@ fun TelaDetalhes(
         val currentLivro = livro
         if (currentLivro == null) {
             Text(
-                text = "Carregando...",
+                text = "Carregando",
                 color = CorTextoSecundario,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(16.dp)
@@ -236,7 +229,6 @@ fun TelaDetalhes(
                                             paginasLidas = novaPagina,
                                             minutosLidos = currentLivro.minutosLidos + novosMinutos
                                         )
-                                        livro = atualizado
                                         aoAtualizar(atualizado)
                                         minutos = ""
                                         Toast.makeText(context, "Progresso salvo!", Toast.LENGTH_SHORT).show()

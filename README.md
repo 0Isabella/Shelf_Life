@@ -144,3 +144,23 @@ Também percebemos ao testar que a tela de Amigos tinha uma lista própria e o R
 2. Abrir a pasta no Android Studio
 3. Sincronizar o Gradle
 4. Executar em um emulador ou dispositivo físico
+
+
+
+##### DOCUMENTAÇÃO PARTE 4 - MVVM
+
+**Antes.** No Trabalho 3, o AppNavigation fazia muito mais do que navegar entre telas. Era nele que ficava o estado do app, ou seja, as listas de livros e de amigos, e era ele que chamava as funções de carregar e salvar os dados. Isso funcionava, mas deixava o arquivo cheio de responsabilidades que não tinham a ver com navegação. A lista inicial de amigos também ficava dentro dos arquivos das telas, misturada com o código da interface, o que deixava as telas maiores e mais difíceis de ler.
+
+**O que fizemos.** Na reorganização, tiramos essas responsabilidades do AppNavigation e separamos tudo em camadas. Tudo o que ele fazia com os dados foi dividido entre os repositories. Criamos também os ViewModels, o UiState e o ViewModelFactory, que explicamos mais abaixo. A lista de amigos que estava dentro das telas ganhou um arquivo só dela, o AmigosIniciais.kt, para que as telas ficassem apenas com o código de interface. Os DAOs e os models não foram alterados, continuam exatamente como eram antes.
+
+<img src="img/trab1img.png" width="600" alt="Estrutura do projeto após a reorganização"/>
+
+<img src="img/trab2img.png" width="600" alt="Código após a reorganização com MVVM"/>
+
+
+**O que mudou para quem usa.** Por fora, o app continua igual. A única diferença visível é na tela de amigos, onde agora dá para clicar no perfil do amigo. A ideia da reorganização era justamente essa: mudar a estrutura do código sem mudar o que o usuário já conhecia.
+
+**Para que serve cada peça.** O ViewModel guarda o estado da tela fora do composable. Assim, a interface só mostra os dados e avisa o ViewModel quando o usuário faz alguma coisa, sem decidir nada sozinha, e o estado não se perde quando a tela é recriada, por exemplo ao girar o celular. O UiState reúne em um só lugar tudo o que a tela precisa exibir naquele momento, o que deixa claro o que a tela depende para funcionar. O ViewModelFactory serve para o Android conseguir criar o ViewModel já com o repository que ele precisa, já que o sistema não sabe fazer isso sozinho. E o Repository é o único lugar que sabe de onde os dados vêm, então nem a tela nem o ViewModel precisam se preocupar com isso.
+
+**Resultado.** Cada arquivo agora tem uma função mais clara: o AppNavigation cuida só da navegação, as telas só desenham a interface, o ViewModel cuida do estado e o Repository cuida dos dados. Isso facilita encontrar onde mexer quando algo precisa mudar e evita que um ajuste em uma parte quebre outra.
+
